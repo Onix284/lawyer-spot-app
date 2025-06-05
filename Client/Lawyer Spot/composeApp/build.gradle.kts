@@ -43,6 +43,14 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+
+            //Ktor
+            implementation(libs.bundles.ktor)
+            implementation(libs.logback.classic)
+
+            //Coil
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.okhttp)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -64,6 +72,7 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/INDEX.LIST"
         }
     }
     buildTypes {
