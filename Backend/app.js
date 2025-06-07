@@ -1,9 +1,18 @@
 const express = require('express');
+const cors = require('cors');
+const authRoutes = require('./routes/authRoutes');
+const db = require('./config/db');
+
 const app = express();
-const db = require('./config/db')
+
+//Middleware
+app.use(cors());
+app.use(express.json());
+
+
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+
 
 app.get('/', (req, res) => {
     res.send('Welcome to the Lawyer Spot API');
@@ -20,31 +29,8 @@ app.get('/users', (req, res) => {
 });
 
 
-
-//Register a new user
-app.post('/register', (req, res) => {
-    const { name, email, password, profileImageURL, role} = req.body;
-
-    if(!name || !email || !password || !profileImageURL || !role) {
-        return res.status(400).json({ error: 'All fields are required' });
-    }
-
-    const sql = 'INSERT INTO users (name, email, password, profileImageURL, role) VALUES (?, ?, ?, ?, ?)';  
-    
-    const values = [name, email, password, profileImageURL, role];
-
-    db.query(sql, values, (err, result) => {
-        if(err){
-            console.log('Error inserting user:', err);
-            if (err.code === 'ER_DUP_ENTRY') {
-                return res.status(409).json({ message: 'Email already exists' });
-            }
-            return res.status(500).json({ message: 'Server error' });
-        }
-
-        res.status(201).json({ message: 'User registered successfully', userId: result.insertId });
-    });
-});
+//Signup a user
+app.use('/auth', authRoutes);
 
 //Lawyer Extra information 
 app.post('/lawyer-profile', (req, res) => {
