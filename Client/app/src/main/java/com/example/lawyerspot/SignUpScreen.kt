@@ -1,9 +1,10 @@
 package com.example.lawyerspot
 
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.scrollable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,8 +19,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.CameraEnhance
+import androidx.compose.material.icons.filled.Filter
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,7 +30,6 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,7 +46,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,10 +71,13 @@ fun SignUpScreen(){
     val scrollState = rememberScrollState()
 
     //Main Parent
-    Box(modifier = Modifier.fillMaxSize().padding(20.dp)){
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .padding(20.dp)){
 
         //Elements Columns
-        Column(modifier = Modifier.padding(5.dp)
+        Column(modifier = Modifier
+            .padding(5.dp)
             .padding(top = 10.dp)
             .verticalScroll(scrollState)
         ){
@@ -82,10 +90,11 @@ fun SignUpScreen(){
                     AsyncImage(
                         model = "https://randomuser.me/api/portraits/men/75.jpg",
                         contentDescription = null,
-                        modifier = Modifier.align(alignment = Alignment.CenterEnd)
+                        modifier = Modifier
+                            .align(alignment = Alignment.CenterEnd)
                             .size(70.dp)
                             .clip(RoundedCornerShape(90.dp))
-                            .clickable(onClick = {isDialogOn = true}),
+                            .clickable(onClick = { isDialogOn = true }),
                     )
                 }
 
@@ -168,7 +177,8 @@ fun SignUpScreen(){
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
                             .menuAnchor()
                     )
                     ExposedDropdownMenu(
@@ -233,6 +243,45 @@ fun PhotoOptionDialog(
     onConfirm : () -> Unit,
     onCancel : () -> Unit
 ){
+
+    val context = LocalContext.current
+    var imageUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+
+
+    //Camera Launcher
+    val CameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) {
+        result ->
+        if(result) {
+            Toast.makeText(context, "Photo Captured!", Toast.LENGTH_SHORT).show()
+            // You can update your UI to show the new photo using imageUri
+        } else {
+            Toast.makeText(context, "Failed to capture photo", Toast.LENGTH_SHORT).show()
+        }
+
+    }
+
+    // Function to create temp file Uri
+    fun createImageUri(): Uri? {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val imageFileName = "JPEG_${timeStamp}_"
+        val storageDir = context.cacheDir  // or getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        val imageFile = File.createTempFile(imageFileName, ".jpg", storageDir)
+        return FileProvider.getUriForFile(
+            context,
+            context.packageName + ".fileprovider",
+            imageFile
+        )
+    }
+
+
+    //Gallery Launcher
+    val GalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
+        imgURI ->
+
+    }
+
+
     if(show){
         AlertDialog(
 
@@ -244,17 +293,27 @@ fun PhotoOptionDialog(
                 Text("Add Your Photo")
             },
             text = {
-                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp)){
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp)){
                     Card(
-                        modifier = Modifier.fillMaxWidth().weight(0.5f).padding(horizontal = 15.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(0.5f)
+                            .padding(horizontal = 15.dp)
+                            .clickable(onClick = {
+                                GalleryLauncher.launch("image/*")
+                            }),
                         shape = RoundedCornerShape(8.dp),
                         elevation = CardDefaults.cardElevation(8.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp).fillMaxSize()
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxSize()
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Person,
+                                imageVector = Icons.Filled.Filter,
                                 contentDescription = null,
                                 modifier = Modifier.align(alignment = Alignment.CenterHorizontally)
                             )
@@ -264,15 +323,25 @@ fun PhotoOptionDialog(
                     }
 
                     Card(
-                        modifier = Modifier.fillMaxWidth().weight(0.5f).padding(horizontal = 15.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(0.5f)
+                            .padding(horizontal = 15.dp)
+                            .clickable(onClick = {
+                                imageUri?.let {uri ->
+                                    CameraLauncher.launch(uri)
+                                }
+                            }),
                         shape = RoundedCornerShape(8.dp),
                         elevation = CardDefaults.cardElevation(8.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp).fillMaxSize()
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxSize()
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Person,
+                                imageVector = Icons.Filled.CameraEnhance,
                                 contentDescription = null,
                                 modifier = Modifier.align(alignment = Alignment.CenterHorizontally)
                             )
@@ -302,9 +371,8 @@ fun PhotoOptionDialog(
                 ) {
                     Text("Cancel", fontSize = 17.sp)
                 }
-            }
+            },
         )
     }
 }
-
 
