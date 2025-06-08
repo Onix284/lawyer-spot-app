@@ -1,6 +1,10 @@
 package com.example.lawyerspot
 
+import android.content.ContentValues
+import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,12 +50,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
+import androidx.core.content.PermissionChecker.PERMISSION_GRANTED
+import androidx.core.net.toUri
+import androidx.core.os.BuildCompat
 import coil3.compose.AsyncImage
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +72,8 @@ fun SignUpScreen(){
 
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    var profileImageUri by remember { mutableStateOf("https://randomuser.me/api/portraits/men/75.jpg".toUri()) }
 
     //Main Parent
     Box(modifier = Modifier
@@ -88,7 +93,7 @@ fun SignUpScreen(){
                         modifier = Modifier.align(alignment = Alignment.CenterStart))
 
                     AsyncImage(
-                        model = "https://randomuser.me/api/portraits/men/75.jpg",
+                        model = profileImageUri,
                         contentDescription = null,
                         modifier = Modifier
                             .align(alignment = Alignment.CenterEnd)
@@ -207,6 +212,10 @@ fun SignUpScreen(){
                     Toast.makeText(context, "Profile Photo Updated", Toast.LENGTH_SHORT).show()},
                 onCancel = {isDialogOn = false
                     Toast.makeText(context, "Canceled", Toast.LENGTH_SHORT).show()
+                },
+                onImageSelected = {
+                    uri ->
+                    profileImageUri = uri
                 }
             )
 
@@ -241,54 +250,47 @@ fun PhotoOptionDialog(
     show : Boolean,
     onDismiss : ()-> Unit,
     onConfirm : () -> Unit,
-    onCancel : () -> Unit
+    onCancel : () -> Unit,
+    onImageSelected : (Uri) -> Unit
 ){
 
     val context = LocalContext.current
-    var imageUri by remember { mutableStateOf<android.net.Uri?>(null) }
 
+    val permissionLauncher = rememberLauncherForActivityResult(contract =
+        ActivityResultContracts.RequestPermission().apply {
+        }) {}
 
+    var tempSelectedUri by remember { mutableStateOf<Uri?>(null) }
+    var imageUri by remember { mutableStateOf("${context.filesDir}/temp.jpg".toUri()) }
 
     //Camera Launcher
-    val CameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) {
-        result ->
-        if(result) {
-            Toast.makeText(context, "Photo Captured!", Toast.LENGTH_SHORT).show()
-            // You can update your UI to show the new photo using imageUri
+    val CameraLauncher = rememberLauncherForActivityResult(contract =
+        ActivityResultContracts.TakePicture()) {
+        success ->
+        if (success) {
+            tempSelectedUri?.let {
+                imageUri = it
+            }
+            Toast.makeText(context, "Image capture: Successful", Toast.LENGTH_SHORT).show()
         } else {
-            Toast.makeText(context, "Failed to capture photo", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Image capture: Failed", Toast.LENGTH_SHORT).show()
         }
-
     }
-
-    // Function to create temp file Uri
-    fun createImageUri(): Uri? {
-        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val imageFileName = "JPEG_${timeStamp}_"
-        val storageDir = context.cacheDir  // or getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-        val imageFile = File.createTempFile(imageFileName, ".jpg", storageDir)
-        return FileProvider.getUriForFile(
-            context,
-            context.packageName + ".fileprovider",
-            imageFile
-        )
-    }
-
 
     //Gallery Launcher
-    val GalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
+    val GalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()
+    ){
         imgURI ->
-
+            imgURI?.let {
+                tempSelectedUri = it
+            }
     }
 
-
+    //Alert Dialog
     if(show){
         AlertDialog(
-
             onDismissRequest = onDismiss,
-
             modifier = Modifier.height(250.dp),
-
             title = {
                 Text("Add Your Photo")
             },
@@ -296,6 +298,8 @@ fun PhotoOptionDialog(
                 Row(modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 10.dp)){
+
+                    //Gallery Card
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -322,15 +326,24 @@ fun PhotoOptionDialog(
                         }
                     }
 
+                    //Camera Card
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(0.5f)
                             .padding(horizontal = 15.dp)
                             .clickable(onClick = {
-                                imageUri?.let {uri ->
-                                    CameraLauncher.launch(uri)
-                                }
+                               if(ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) != PERMISSION_GRANTED){
+                                   permissionLauncher.launch(android.Manifest.permission.CAMERA)
+                               }
+                                else
+                               {
+                                   val uri= createImageUri(context)
+                                   tempSelectedUri = uri
+                                   uri?.let {
+                                       CameraLauncher.launch(it)
+                                   }
+                               }
                             }),
                         shape = RoundedCornerShape(8.dp),
                         elevation = CardDefaults.cardElevation(8.dp)
@@ -356,9 +369,12 @@ fun PhotoOptionDialog(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onConfirm(
 
-                        )
+                        tempSelectedUri?.let {
+                            onImageSelected(it)
+                        }
+
+                        onConfirm()
                     }
                 ){
                     Text("Add", modifier = Modifier.padding(end = 5.dp), fontSize = 17.sp)
@@ -376,3 +392,15 @@ fun PhotoOptionDialog(
     }
 }
 
+//Create Image Uri on Camera Button Click
+fun createImageUri(context: Context) : Uri? {
+
+    val contentResolver = context.contentResolver
+    val contentValues = ContentValues().apply {
+        put(MediaStore.Images.Media.DISPLAY_NAME, "IMG_${System.currentTimeMillis()}.jpg")
+        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+        put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/MyApp")
+    }
+
+    return contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+}
