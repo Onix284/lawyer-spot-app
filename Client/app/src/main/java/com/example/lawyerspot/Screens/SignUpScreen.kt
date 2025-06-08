@@ -1,8 +1,8 @@
-package com.example.lawyerspot
+package com.example.lawyerspot.Screens
 
+import android.Manifest
 import android.content.ContentValues
 import android.content.Context
-import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.MediaStore
 import android.widget.Toast
@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraEnhance
@@ -48,32 +49,38 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker.PERMISSION_GRANTED
 import androidx.core.net.toUri
-import androidx.core.os.BuildCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
+import com.example.lawyerspot.AllViewModels.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SignUpScreen(){
+fun SignUpScreen(
+    viewModel: AuthViewModel = hiltViewModel()
+){
 
+    //Values to pass in backend
     val name = remember { mutableStateOf("") }
     val email = remember { mutableStateOf("") }
     val password = remember { mutableStateOf("") }
-
-    var expanded by remember { mutableStateOf(false) }
     var selectedRole by remember { mutableStateOf("") }
+    var profileImageUri by remember { mutableStateOf("https://randomuser.me/api/portraits/men/75.jpg".toUri()) }
+
+
+    //Extras
+    var expanded by remember { mutableStateOf(false) }
     val roles = listOf("Client", "Lawyer")
-
     var isDialogOn by remember { mutableStateOf(false) }
-
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    var profileImageUri by remember { mutableStateOf("https://randomuser.me/api/portraits/men/75.jpg".toUri()) }
 
     //Main Parent
     Box(modifier = Modifier
@@ -148,14 +155,16 @@ fun SignUpScreen(){
             Text(
                 text = "Password",// or any style you prefer
                 modifier = Modifier.padding(bottom = 10.dp),
-                fontSize = 20.sp
+                fontSize = 20.sp,
             )
 
             OutlinedTextField(
                 value = password.value,
                 onValueChange = {password.value = it },
                 placeholder = {Text("Enter Your Password")},
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
             )
 
 
@@ -176,7 +185,7 @@ fun SignUpScreen(){
                 ) {
                     OutlinedTextField(
                         value = selectedRole,
-                        onValueChange = {},
+                        onValueChange = {selectedRole = it},
                         readOnly = true,
                         label = {Text("Select Role")},
                         trailingIcon = {
@@ -223,7 +232,9 @@ fun SignUpScreen(){
             Spacer(modifier = Modifier.height(20.dp))
 
             //Signup Button
-            FilledTonalButton(onClick = {}, modifier = Modifier
+            FilledTonalButton(onClick = {
+
+            }, modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 90.dp)
                 .height(50.dp)){
@@ -333,8 +344,8 @@ fun PhotoOptionDialog(
                             .weight(0.5f)
                             .padding(horizontal = 15.dp)
                             .clickable(onClick = {
-                               if(ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) != PERMISSION_GRANTED){
-                                   permissionLauncher.launch(android.Manifest.permission.CAMERA)
+                               if(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PERMISSION_GRANTED){
+                                   permissionLauncher.launch(Manifest.permission.CAMERA)
                                }
                                 else
                                {
@@ -365,15 +376,13 @@ fun PhotoOptionDialog(
                 }
             },
 
-
+            //Confirm Button
             confirmButton = {
                 TextButton(
                     onClick = {
-
                         tempSelectedUri?.let {
                             onImageSelected(it)
                         }
-
                         onConfirm()
                     }
                 ){
@@ -381,6 +390,7 @@ fun PhotoOptionDialog(
                 }
             },
 
+            //Cancel Button
             dismissButton = {
                 TextButton(
                     onClick = onCancel
