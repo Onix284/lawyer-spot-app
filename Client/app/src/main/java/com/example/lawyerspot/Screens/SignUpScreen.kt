@@ -39,6 +39,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +60,7 @@ import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.example.lawyerspot.AllViewModels.AuthViewModel
+import com.example.lawyerspot.Data.Model.UserRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,6 +75,8 @@ fun SignUpScreen(
     var selectedRole by remember { mutableStateOf("") }
     var profileImageUri by remember { mutableStateOf("https://randomuser.me/api/portraits/men/75.jpg".toUri()) }
 
+    //Observe Result
+    val signUpResult by viewModel.signupResult.collectAsState()
 
     //Extras
     var expanded by remember { mutableStateOf(false) }
@@ -233,8 +237,16 @@ fun SignUpScreen(
 
             //Signup Button
             FilledTonalButton(onClick = {
-
-            }, modifier = Modifier
+                val request = UserRequest(
+                    name = name.value,
+                    email = email.value,
+                    password = password.value,
+                    role = selectedRole,
+                    imageURI = profileImageUri.toString()
+                )
+                viewModel.signUp(request)
+                 },
+                modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 90.dp)
                 .height(50.dp)){
